@@ -1,0 +1,21 @@
+{
+  "name": "chatbackend",
+  "version": "1.0.0",
+  "main": "app.ts",
+  "scripts": {
+    "start": "node app.js",
+    "dev": "nodemon app.js"
+  },
+  "author": "abdullah0saeed",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "bcrypt": "^5.1.1",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^5.1.0",
+    "joi": "^17.13.3",
+    "mongoose": "^8.13.2",
+    "nodemon": "^3.1.9"
+  }
+}
