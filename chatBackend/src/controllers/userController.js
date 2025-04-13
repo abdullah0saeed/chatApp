@@ -36,6 +36,7 @@ exports.login = async (req, res) => {
     return res.status(200).json({
       message: "Login successful",
       user: {
+        id: fetchedUser._id,
         username: fetchedUser.username,
         email: fetchedUser.email,
         fname: fetchedUser.fname,
@@ -55,8 +56,6 @@ exports.login = async (req, res) => {
 };
 ////////////////////////////////////////////////////////////////////////////?
 exports.register = async (req, res) => {
-  console.log("Registering user:", req.body);
-
   const { error } = userValidationSchema.validate(req.body);
   if (error) {
     return res.status(400).json({
@@ -98,6 +97,7 @@ exports.register = async (req, res) => {
     return res.status(201).json({
       message: "User registered successfully",
       user: {
+        id: savedUser._id,
         username: savedUser.username,
         email: savedUser.email,
         fname: savedUser.fname,
@@ -108,6 +108,26 @@ exports.register = async (req, res) => {
     console.error("Error saving user:", error.message);
     return res.status(500).json({
       message: "An error occurred during registration",
+    });
+  }
+};
+////////////////////////////////////////////////////////////////////////////?
+exports.getAllUsers = async (req, res) => {
+  const { userId } = req.params;
+
+  try {
+    const users = await User.find({ _id: { $ne: userId } });
+
+    if (!users) return res.status(404).json({ message: "No users found" });
+
+    return res.status(200).json({
+      message: "Users fetched successfully",
+      users,
+    });
+  } catch (error) {
+    console.error("Error fetching users:", error.message);
+    return res.status(500).json({
+      message: "An error occurred while fetching users",
     });
   }
 };

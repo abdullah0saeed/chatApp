@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
-import useGetUserCache from "@/hooks/user/useGetUserCache";
 import { router } from "expo-router";
+
+import useGetUserCache from "@/hooks/user/useGetUserCache";
+import useRemoveUserCache from "@/hooks/user/useRemoveUserCache";
 
 export default function AuthProvider({ children }: any) {
   const [isSignedIn, setIsSignedIn] = useState<boolean | null>(null); // null for loading state

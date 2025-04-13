@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default async (userCache: {
+  id: string;
   fname: string;
   lname: string;
   email: string;

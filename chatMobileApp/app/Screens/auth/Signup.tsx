@@ -93,8 +93,8 @@ export default function Signup() {
     })
       .then((res) => {
         if (res) {
-          alert("User registered successfully");
           useSetUserCache({
+            id: res.id,
             email: state.email,
             username: state.username,
             fname: state.fname,
@@ -104,7 +104,7 @@ export default function Signup() {
             isAdmin: false,
           });
           dispatch({ type: "RESET" });
-          router.replace("/Screens/UI/Home");
+          router.replace("/Screens/UI");
         }
       })
       .catch((err) => {
@@ -149,6 +149,7 @@ export default function Signup() {
             <TextInput
               placeholder="Email"
               placeholderTextColor={"rgba(146, 191, 170, 0.91)"}
+              autoCapitalize="none"
               style={[
                 {
                   width: width * 0.85,
@@ -165,6 +166,7 @@ export default function Signup() {
             <TextInput
               placeholder="Username"
               placeholderTextColor={"rgba(146, 191, 170, 0.91)"}
+              autoCapitalize="none"
               style={[
                 {
                   width: width * 0.85,
@@ -181,6 +183,7 @@ export default function Signup() {
             <TextInput
               placeholder="First name"
               placeholderTextColor={"rgba(146, 191, 170, 0.91)"}
+              autoCapitalize="none"
               style={[
                 {
                   width: width * 0.85,
@@ -197,6 +200,7 @@ export default function Signup() {
             <TextInput
               placeholder="Last name"
               placeholderTextColor={"rgba(146, 191, 170, 0.91)"}
+              autoCapitalize="none"
               style={[
                 {
                   width: width * 0.85,
@@ -213,6 +217,7 @@ export default function Signup() {
             <TextInput
               placeholder="Password"
               placeholderTextColor={"rgba(146, 191, 170, 0.91)"}
+              autoCapitalize="none"
               secureTextEntry={true}
               style={[
                 {
@@ -230,6 +235,7 @@ export default function Signup() {
             <TextInput
               placeholder="Confirm Password"
               placeholderTextColor={"rgba(146, 191, 170, 0.91)"}
+              autoCapitalize="none"
               secureTextEntry={true}
               style={[
                 {

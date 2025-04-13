@@ -41,3 +41,22 @@ export const loginUser = async (userData: any) => {
     return null;
   }
 };
+//////////////////////////////////////////////////////////////////////?
+export const getAllUsers = async (id: string) => {
+  try {
+    const response = await fetch(`${BASE_URL}/api/users/${id}`, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      return alert(data.message || "Failed to get users");
+    }
+    return data.users;
+  } catch (error) {
+    console.error("Error getting users:", error);
+    return null;
+  }
+};

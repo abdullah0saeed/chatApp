@@ -56,6 +56,7 @@ export default function Login() {
 
       if (res) {
         useSetUserCache({
+          id: res.id,
           fname: res.fname,
           lname: res.lname,
           email: res.email,
@@ -97,6 +98,7 @@ export default function Login() {
               <TextInput
                 placeholder="Username | Email"
                 placeholderTextColor={"rgba(146, 191, 170, 0.91)"}
+                autoCapitalize="none"
                 style={[
                   {
                     width: width * 0.85,
@@ -113,6 +115,7 @@ export default function Login() {
               <TextInput
                 placeholder="Password"
                 placeholderTextColor={"rgba(146, 191, 170, 0.91)"}
+                autoCapitalize="none"
                 secureTextEntry={true}
                 style={[
                   {

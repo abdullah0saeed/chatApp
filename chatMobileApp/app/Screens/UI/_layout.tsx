@@ -3,7 +3,7 @@ import { createDrawerNavigator } from "@react-navigation/drawer";
 
 import { useWindowDimensions } from "react-native";
 import Settings from "./Settings";
-import Home from ".";
+import index from ".";
 import News from "./News";
 
 const Drawer = createDrawerNavigator();
@@ -29,10 +29,10 @@ export default () => {
     >
       <Drawer.Screen
         name="index"
-        component={Home}
+        component={index}
         options={{
-          header: () => <Header />,
           drawerLabel: "Chats",
+          headerShown: false,
         }}
       />
 

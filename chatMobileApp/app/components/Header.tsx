@@ -12,7 +12,7 @@ import useGetUserCache from "@/hooks/user/useGetUserCache";
 import useRemoveUserCache from "@/hooks/user/useRemoveUserCache";
 import { useNavigation } from "@react-navigation/native";
 
-export default function Header() {
+export default function Header({ userParam = null }: any) {
   const { width, height } = useWindowDimensions();
 
   const navigation = useNavigation();
@@ -23,11 +23,15 @@ export default function Header() {
   const [user, setUser] = useState();
 
   const handelUserCache = async () => {
-    const userData = await useGetUserCache();
-    setUser(userData);
+    if (!userParam) {
+      const userData = await useGetUserCache();
+      setUser(userData);
 
-    if (!userData) {
-      useRemoveUserCache();
+      if (!userData) {
+        useRemoveUserCache();
+      }
+    } else {
+      setUser(userParam);
     }
   };
 
@@ -61,16 +65,18 @@ export default function Header() {
           {user ? user.fname + " " + user.lname : "User"}
         </Text>
       </View>
-      <TouchableOpacity onPress={toggleDrawer}>
-        <Ionicons name="menu" size={width * 0.09} />
-      </TouchableOpacity>{" "}
+      {!userParam && (
+        <TouchableOpacity onPress={toggleDrawer}>
+          <Ionicons name="menu" size={width * 0.09} />
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: "rgba(136, 181, 208, 0.82)",
+    backgroundColor: "rgba(24, 141, 147, 0.82)",
     paddingHorizontal: 10,
     display: "flex",
     flexDirection: "row",
