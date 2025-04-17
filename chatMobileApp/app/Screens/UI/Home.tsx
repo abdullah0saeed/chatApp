@@ -61,7 +61,7 @@ export default function Home() {
 
             flexDirection: "row",
             alignItems: "center",
-            borderWidth: 1,
+            borderWidth: 0.5,
             borderColor: "rgba(99, 109, 106, 0.46)",
           }}
         >

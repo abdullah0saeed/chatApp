@@ -1,154 +1,3 @@
-// import {
-//   View,
-//   Text,
-//   StyleSheet,
-//   ScrollView,
-//   KeyboardAvoidingView,
-//   TextInput,
-//   TouchableOpacity,
-// } from "react-native";
-// import React, { useEffect } from "react";
-// import { useLocalSearchParams } from "expo-router";
-// import { io } from "socket.io-client";
-
-// import Header from "@/app/components/Header";
-// import { FontAwesome } from "@expo/vector-icons";
-// import consts from "@/consts";
-// import useGetUserCache from "@/hooks/user/useGetUserCache";
-// import useGetChat from "@/hooks/chats/useGetChat";
-
-// const { BASE_URL } = consts;
-
-// const socket = io(BASE_URL, { transports: ["websocket"] });
-
-// export default function Chat() {
-//   const { email, fname, lname, id: receiverId } = useLocalSearchParams();
-
-//   const [height, setHeight] = React.useState(60);
-
-//   const [sender, setSender] = React.useState({});
-
-//   const [message, setMessage] = React.useState("");
-//   const [chat, setChat] = React.useState([]);
-
-//   useEffect(() => {
-//     (async () => {
-//       const user = await useGetUserCache();
-//       setSender(user);
-//       socket.emit("join", user.id);
-
-//       await useGetChat(user.id, receiverId.toString()).then((data) => {
-//         setChat(data);
-//       });
-//     })();
-//   }, []);
-
-//   useEffect(() => {
-//     socket.on("receiveMessage", (data) => {
-//       setChat((prev) => [...prev, data]);
-//     });
-//   }, [socket]);
-
-//   // Function to dynamically adjust height of the text input
-//   const handleContentSizeChange = (
-//     contentWidth: number,
-//     contentHeight: number
-//   ) => {
-//     // You can add conditions to cap the height if needed
-//     setHeight(contentHeight);
-//   };
-//   return (
-//     <View style={styles.container}>
-//       <Header userParam={{ fname, lname }} />
-//       <KeyboardAvoidingView style={{ flex: 1 }}>
-//         <ScrollView style={[styles.chatContainer]}>
-//           {chat?.map((item, index) => (
-//             <View
-//               style={{
-//                 marginTop: 10,
-//                 backgroundColor:
-//                   item.senderId === sender.id ? "#fff" : "#d3d3d3",
-//                 padding: 10,
-//                 borderRadius: 10,
-//               }}
-//               key={index}
-//             >
-//               <Text
-//                 style={{
-//                   fontSize: 16,
-//                   color: item.senderId === sender.id ? "#000" : "#000",
-//                 }}
-//               >
-//                 {" "}
-//                 {item.message}
-//               </Text>
-//             </View>
-//           ))}
-//         </ScrollView>
-//         <View style={styles.inputContainer}>
-//           <TextInput
-//             placeholder="Type a message"
-//             keyboardType="default"
-//             autoCapitalize="none"
-//             autoCorrect={false}
-//             multiline
-//             numberOfLines={4}
-//             onContentSizeChange={handleContentSizeChange} // Dynamically adjust height
-//             style={[styles.textInput, { height }]}
-//             value={message}
-//             onChangeText={(text) => setMessage(text)}
-//           />
-//           <TouchableOpacity
-//             style={styles.sendBtn}
-//             onPress={() => {
-//               socket.emit("sendMessage", {
-//                 message,
-//                 senderId: sender.id,
-//                 receiverId: receiverId.toString(),
-//               });
-//               setMessage("");
-//             }}
-//           >
-//             <FontAwesome name="send" size={24} color="white" />
-//           </TouchableOpacity>
-//         </View>
-//       </KeyboardAvoidingView>
-//     </View>
-//   );
-// }
-
-// const styles = StyleSheet.create({
-//   container: {
-//     flex: 1,
-//     backgroundColor: "rgba(220, 233, 237, 0.82)",
-//   },
-//   chatContainer: {
-//     flexGrow: 1,
-//     paddingHorizontal: 5,
-//     marginBottom: 10,
-//   },
-//   inputContainer: {
-//     justifyContent: "space-between",
-//     flexDirection: "row",
-//     alignItems: "flex-end",
-//     width: "100%",
-//   },
-//   textInput: {
-//     minHeight: 60,
-//     borderColor: "gray",
-//     backgroundColor: "#fff",
-//     paddingHorizontal: 10,
-//     width: "82%",
-//   },
-//   sendBtn: {
-//     width: "18%",
-//     height: 60,
-//     backgroundColor: "rgba(152, 187, 247, 0.82)",
-//     justifyContent: "center",
-//     alignItems: "center",
-//   },
-// });
-
 import React, { useEffect, useState } from "react";
 import {
   View,
@@ -169,6 +18,8 @@ import useGetUserCache from "@/hooks/user/useGetUserCache";
 import useGetChat from "@/hooks/chats/useGetChat";
 import { useLocalSearchParams } from "expo-router";
 import useSetChat from "@/hooks/chats/useSetChat";
+import { getMessages } from "@/app/requests/messagesRequests";
+import MessageBubble from "@/app/components/MessageBubble";
 
 const { BASE_URL } = consts;
 
@@ -189,9 +40,15 @@ export default function Chat() {
       try {
         const user = await useGetUserCache();
         setSender(user);
+
         socket.emit("join", user.id);
 
-        const chatData = await useGetChat(user.id, receiverId.toString());
+        let chatData = [];
+        const cachedChat = await useGetChat(user.id, receiverId.toString());
+        if (cachedChat) chatData = cachedChat;
+
+        useSetChat(user.id, receiverId.toString(), chatData);
+
         setChat(chatData);
       } catch (error) {
         console.error("Error fetching user data or chat:", error);
@@ -201,23 +58,78 @@ export default function Chat() {
     fetchUserData();
 
     // Listen for incoming messages
-    const handleMessage = (data) => {
+    const handleMessage = async (data: any) => {
+      const sender = await useGetUserCache();
+
+      if (data.senderId === sender.id) return;
+
+      data.seen = true;
+
+      // Mark the message as seen and notify the sender
+      socket.emit("messageSeen", {
+        senderId: data.senderId,
+        receiverId: data.receiverId,
+        messageId: data.timestamp, // Use the timestamp as a unique identifier
+      });
+
       setChat((prev) => [...prev, data]);
-      const oldChat = chat;
-      oldChat.push(data);
-      useSetChat(sender.id, receiverId.toString(), oldChat);
+      const newChat = [...chat];
+      newChat.push(data);
+      useSetChat(sender.id, receiverId.toString(), [...newChat]);
     };
     socket.on("receiveMessage", handleMessage);
 
     // Cleanup function
     return () => {
       socket.off("receiveMessage", handleMessage);
-      socket.disconnect();
+      // socket.disconnect();
     };
   }, [receiverId]);
 
+  useEffect(() => {
+    (async () => {
+      const user = await useGetUserCache();
+
+      const resMessages = await getMessages(user.id, receiverId.toString());
+
+      let chatData = await useGetChat(user.id, receiverId.toString());
+
+      resMessages.receivedMessages.forEach((msg) => {
+        if (!msg.seen) {
+          chatData.push(msg);
+        }
+      });
+
+      resMessages.sentMessages.forEach((msg) => {
+        if (msg.seen) {
+          const found = chatData.find((m) => m.timestamp === msg.timestamp);
+          if (found) found.seen = true;
+        }
+      });
+
+      useSetChat(user.id, receiverId.toString(), chatData);
+      setChat(chatData);
+    })();
+  }, []);
+
+  useEffect(() => {
+    const handleUpdateMessageSeen = (messageId) => {
+      setChat((prev) =>
+        prev.map((msg) =>
+          msg.timestamp === messageId ? { ...msg, seen: true } : msg
+        )
+      );
+    };
+
+    socket.on("updateMessageSeen", handleUpdateMessageSeen);
+
+    return () => {
+      socket.off("updateMessageSeen", handleUpdateMessageSeen);
+    };
+  }, []);
+
   // Dynamically adjust height of the text input
-  const handleContentSizeChange = (contentWidth, contentHeight) => {
+  const handleContentSizeChange = (_, contentHeight: number) => {
     setHeight(Math.min(contentHeight, 120)); // Cap the height at 120
   };
 
@@ -244,6 +156,7 @@ export default function Chat() {
             })
           }
           contentContainerStyle={{ flexGrow: 1 }}
+          showsVerticalScrollIndicator={false}
         >
           {chat?.map((item, index) => (
             <MessageBubble key={index} message={item} senderId={sender.id} />
@@ -276,7 +189,7 @@ export default function Chat() {
                   message,
                   senderId: sender.id,
                   receiverId: receiverId.toString(),
-                  timestamp: Date.now(),
+                  timestamp: new Date().toISOString(),
                   seen: false,
                 };
 
@@ -303,56 +216,6 @@ export default function Chat() {
 }
 
 // Reusable MessageBubble Component
-const MessageBubble = ({ message, senderId }) => {
-  const isSender = message.senderId === senderId;
-  return (
-    <View
-      style={{
-        marginTop: 15,
-        backgroundColor: isSender ? "#fff" : "rgba(169, 210, 167, 0.82)",
-        padding: 10,
-        borderRadius: 10,
-        alignSelf: isSender ? "flex-end" : "flex-start",
-      }}
-    >
-      <Text style={{ fontSize: 16, color: "#000" }}>{message.message}</Text>
-      <View
-        style={{
-          flexDirection: "row",
-          alignItems: "baseline",
-          marginTop: 5,
-        }}
-      >
-        <Text style={{ fontSize: 12, color: "#888", marginTop: 5 }}>
-          {new Date(message.timestamp).toLocaleString().split(",")[0] +
-            " " +
-            new Date(message.timestamp).toLocaleString().slice(-11, -6) +
-            " " +
-            new Date(message.timestamp).toLocaleString().slice(-2)}
-        </Text>
-        {isSender && (
-          <View
-            style={{
-              marginLeft: 5,
-              backgroundColor: !message.seen
-                ? "#ccc"
-                : "rgba(28, 156, 242, 0.82)",
-              width: 10,
-              height: 10,
-              borderRadius: 50,
-            }}
-          />
-        )}
-      </View>
-      <View
-        style={[
-          styles.bubbleArrow,
-          isSender ? styles.bubbleArrowRight : styles.bubbleArrowLeft,
-        ]}
-      />
-    </View>
-  );
-};
 
 const styles = StyleSheet.create({
   container: {
@@ -395,27 +258,5 @@ const styles = StyleSheet.create({
 
     width: 0,
     height: 0,
-  },
-  bubbleArrowRight: {
-    right: 5,
-    borderTopWidth: 10,
-    borderTopColor: "transparent",
-    borderLeftWidth: 10,
-    borderLeftColor: "transparent",
-    borderRightWidth: 10,
-    borderRightColor: "#fff",
-    borderBottomWidth: 10,
-    borderBottomColor: "transparent",
-  },
-  bubbleArrowLeft: {
-    left: 5,
-    borderTopWidth: 10,
-    borderTopColor: "transparent",
-    borderLeftWidth: 10,
-    borderLeftColor: "rgba(169, 210, 167, 0.82)",
-    borderRightWidth: 10,
-    borderRightColor: "transparent",
-    borderBottomWidth: 10,
-    borderBottomColor: "transparent",
   },
 });

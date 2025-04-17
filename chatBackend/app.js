@@ -24,6 +24,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // Routes
 app.use("/api", require("./src/routes/userRoutes"));
+app.use("/api/messages", require("./src/routes/messageRoutes"));
 
 // Constants
 const PORT = process.env.PORT || 3000;

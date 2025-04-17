@@ -1,3 +1,5 @@
+const Message = require("../models/messageModel");
+
 module.exports = (io) => {
   io.on("connection", (socket) => {
     console.log(`Socket ${socket.id} connected`);
@@ -21,15 +23,32 @@ module.exports = (io) => {
           return;
         }
 
+        const utcTimestamp = timestamp ? new Date(timestamp) : new Date();
+
+        Message.create({
+          senderId,
+          receiverId,
+          text: message,
+          seen,
+          timestamp: utcTimestamp,
+        });
+
         io.to(receiverId).emit("receiveMessage", {
           senderId,
+          receiverId,
           message,
           seen,
-          timestamp,
+          timestamp: utcTimestamp,
         });
         console.log(`Message sent from ${senderId} to ${receiverId}`);
       }
     );
+
+    // Handle message seen acknowledgment
+    socket.on("messageSeen", ({ senderId, receiverId, messageId }) => {
+      io.to(senderId).emit("updateMessageSeen", messageId);
+      Message.deleteOne({ timestamp: messageId, senderId, receiverId });
+    });
 
     // Handle disconnection
     socket.on("disconnect", () => {
