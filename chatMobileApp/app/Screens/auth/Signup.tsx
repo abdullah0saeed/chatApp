@@ -250,7 +250,16 @@ export default function Signup() {
                 dispatch({ type: "SET_CONFIRM_PASSWORD", payload: text });
               }}
             />
-            <TouchableOpacity style={styles.btn} onPress={handleRegister}>
+            <TouchableOpacity
+              style={[
+                styles.btn,
+                state.isLoading && {
+                  backgroundColor: "rgba(167, 210, 184, 0.82)",
+                },
+              ]}
+              onPress={handleRegister}
+              disabled={state.isLoading}
+            >
               {!state.isLoading ? (
                 <Text style={[{ fontSize: width * 0.06 }, styles.btnTxt]}>
                   Register
@@ -315,6 +324,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
     borderColor: "#fff",
     width: "90%",
+    maxHeight: 50,
   },
   btnTxt: {
     textAlign: "center",

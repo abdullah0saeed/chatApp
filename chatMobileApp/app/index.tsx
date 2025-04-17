@@ -9,6 +9,8 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
   KeyboardAvoidingView,
+  Image,
+  ScrollView,
 } from "react-native";
 import React, { useEffect, useReducer } from "react";
 import { Link, router } from "expo-router";
@@ -82,86 +84,109 @@ export default function Login() {
         keyboardVerticalOffset={10}
       >
         <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
-          <View style={styles.container}>
-            <View
-              style={[
-                {
-                  width: width * 0.85,
-                  height: height * 0.5,
-                },
-                styles.box,
-              ]}
-            >
-              <Text style={[{ fontSize: width * 0.07 }, styles.header]}>
-                Login to your account
-              </Text>
-              <TextInput
-                placeholder="Username | Email"
-                placeholderTextColor={"rgba(146, 191, 170, 0.91)"}
-                autoCapitalize="none"
+          <ScrollView
+            contentContainerStyle={{ flexGrow: 1 }}
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.container}>
+              <Image
+                source={require("../assets/images/myLogo.png")}
+                style={{
+                  width: width * 0.35,
+                  height: width * 0.35,
+                  marginBottom: width * 0.05,
+                }}
+              />
+
+              <View
                 style={[
                   {
                     width: width * 0.85,
-                    height: height * 0.08,
-                    fontSize: width * 0.05,
+                    height: height * 0.5,
                   },
-                  styles.input,
-                ]}
-                value={state.username}
-                onChangeText={(text) =>
-                  dispatch({ type: "SET_USERNAME", payload: text })
-                }
-              />
-              <TextInput
-                placeholder="Password"
-                placeholderTextColor={"rgba(146, 191, 170, 0.91)"}
-                autoCapitalize="none"
-                secureTextEntry={true}
-                style={[
-                  {
-                    width: width * 0.85,
-                    height: height * 0.08,
-                    fontSize: width * 0.05,
-                  },
-                  styles.input,
-                ]}
-                value={state.password}
-                onChangeText={(text) =>
-                  dispatch({ type: "SET_PASSWORD", payload: text })
-                }
-              />
-              <TouchableOpacity style={styles.btn} onPress={handleLogin}>
-                {!isLoading ? (
-                  <Text style={[{ fontSize: width * 0.06 }, styles.btnTxt]}>
-                    Login
-                  </Text>
-                ) : (
-                  <ActivityIndicator
-                    size="large"
-                    color="white"
-                    style={{ width: "100%", height: "100%" }}
-                  />
-                )}
-              </TouchableOpacity>
-              <Text
-                style={[
-                  { fontSize: width * 0.05, marginTop: height * 0.02 },
-                  styles.registerTxt,
+                  styles.box,
                 ]}
               >
-                Don't have an account?{" "}
-                <Link
-                  href="/Screens/auth/Signup"
-                  style={{
-                    color: "rgba(227, 142, 14, 0.93)",
-                    fontWeight: "bold",
-                  }}
+                <Text style={[{ fontSize: width * 0.07 }, styles.header]}>
+                  Login to your account
+                </Text>
+                <TextInput
+                  placeholder="Username | Email"
+                  placeholderTextColor={"rgba(146, 191, 170, 0.91)"}
+                  autoCapitalize="none"
+                  style={[
+                    {
+                      width: width * 0.85,
+                      height: height * 0.08,
+                      fontSize: width * 0.05,
+                    },
+                    styles.input,
+                  ]}
+                  value={state.username}
+                  onChangeText={(text) =>
+                    dispatch({ type: "SET_USERNAME", payload: text })
+                  }
+                />
+                <TextInput
+                  placeholder="Password"
+                  placeholderTextColor={"rgba(146, 191, 170, 0.91)"}
+                  autoCapitalize="none"
+                  secureTextEntry={true}
+                  style={[
+                    {
+                      width: width * 0.85,
+                      height: height * 0.08,
+                      fontSize: width * 0.05,
+                    },
+                    styles.input,
+                  ]}
+                  value={state.password}
+                  onChangeText={(text) =>
+                    dispatch({ type: "SET_PASSWORD", payload: text })
+                  }
+                />
+                <TouchableOpacity
+                  style={[
+                    styles.btn,
+                    isLoading && {
+                      backgroundColor: "rgba(167, 210, 184, 0.82)",
+                    },
+                  ]}
+                  onPress={handleLogin}
+                  disabled={isLoading}
                 >
-                  Register
-                </Link>
-              </Text>
+                  {!isLoading ? (
+                    <Text style={[{ fontSize: width * 0.06 }, styles.btnTxt]}>
+                      Login
+                    </Text>
+                  ) : (
+                    <ActivityIndicator
+                      size="large"
+                      color="white"
+                      style={{ width: "100%", height: "100%" }}
+                    />
+                  )}
+                </TouchableOpacity>
+                <Text
+                  style={[
+                    { fontSize: width * 0.05, marginTop: height * 0.02 },
+                    styles.registerTxt,
+                  ]}
+                >
+                  Don't have an account?{" "}
+                  <Link
+                    href="/Screens/auth/Signup"
+                    style={{
+                      color: "rgba(227, 142, 14, 0.93)",
+                      fontWeight: "bold",
+                    }}
+                  >
+                    Register
+                  </Link>
+                </Text>
+              </View>
             </View>
-          </View>
+          </ScrollView>
         </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
     </AuthProvider>
@@ -196,6 +221,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
     borderColor: "#fff",
     width: "90%",
+    maxHeight: 50,
   },
   btnTxt: {
     textAlign: "center",

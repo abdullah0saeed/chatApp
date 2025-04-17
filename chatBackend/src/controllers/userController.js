@@ -1,4 +1,5 @@
 const { User, userValidationSchema } = require("../models/userModel");
+const Message = require("../models/messageModel");
 const bcrypt = require("bcrypt");
 
 exports.login = async (req, res) => {
@@ -112,22 +113,88 @@ exports.register = async (req, res) => {
   }
 };
 ////////////////////////////////////////////////////////////////////////////?
+// exports.getAllUsers = async (req, res) => {
+//   const { userId } = req.params;
+
+//   try {
+//     let users = await User.find({ _id: { $ne: userId } });
+
+//     if (!users) return res.status(404).json({ message: "No users found" });
+
+//     const myNewMsgs = await Message.find(
+//       { receiverId: userId },
+//       { senderId: 1 }
+//     );
+
+//     users = users.map((user) => {
+//       const newMsg = myNewMsgs.filter(
+//         (msg) => msg.senderId == user._id && msg.seen == false
+//       );
+//       return {
+//         ...user._doc,
+//         newMsgs: String(newMsg.length),
+//       };
+//     });
+//     console.log(users);
+
+//     return res.status(200).json({
+//       message: "Users fetched successfully",
+//       users,
+//     });
+//   } catch (error) {
+//     console.error("Error fetching users:", error.message);
+//     return res.status(500).json({
+//       message: "An error occurred while fetching users",
+//     });
+//   }
+// };
+
 exports.getAllUsers = async (req, res) => {
   const { userId } = req.params;
 
+  // Validate userId
+  if (!userId) {
+    return res.status(400).json({ message: "User ID is required" });
+  }
+
   try {
+    // Fetch all users except the current user
     const users = await User.find({ _id: { $ne: userId } });
 
-    if (!users) return res.status(404).json({ message: "No users found" });
+    if (!users || users.length === 0) {
+      return res.status(404).json({ message: "No users found" });
+    }
+
+    // Fetch new messages for the current user
+    const myNewMsgs = await Message.find(
+      { receiverId: userId, seen: false },
+      { senderId: 1 }
+    );
+
+    // Preprocess messages into a map for efficient lookups
+    const msgCountMap = {};
+    myNewMsgs.forEach((msg) => {
+      if (!msgCountMap[msg.senderId]) {
+        msgCountMap[msg.senderId] = 0;
+      }
+      msgCountMap[msg.senderId]++;
+    });
+
+    // Add newMsgs count to each user
+    const usersWithNewMsgs = users.map((user) => ({
+      ...user._doc,
+      newMsgs: msgCountMap[user._id] ? String(msgCountMap[user._id]) : "0", // Default to 0 if no new messages
+    }));
 
     return res.status(200).json({
       message: "Users fetched successfully",
-      users,
+      users: usersWithNewMsgs,
     });
   } catch (error) {
     console.error("Error fetching users:", error.message);
     return res.status(500).json({
       message: "An error occurred while fetching users",
+      error: error.message, // Include error details for debugging
     });
   }
 };
