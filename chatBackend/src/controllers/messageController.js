@@ -1,4 +1,5 @@
 const Message = require("../models/messageModel");
+const { io } = require("../../app");
 
 exports.getMsgsBtwnUsers = async (req, res) => {
   const { user1Id: senderId, user2Id: receiverId } = req.params;

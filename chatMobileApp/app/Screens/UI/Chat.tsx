@@ -1,7 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   View,
-  Text,
   StyleSheet,
   ScrollView,
   KeyboardAvoidingView,
@@ -11,109 +10,118 @@ import {
 } from "react-native";
 import { FontAwesome } from "@expo/vector-icons";
 import { io } from "socket.io-client";
+import { useLocalSearchParams } from "expo-router";
 
 import Header from "@/app/components/Header";
+import MessageBubble from "@/app/components/MessageBubble";
 import consts from "@/consts";
 import useGetUserCache from "@/hooks/user/useGetUserCache";
 import useGetChat from "@/hooks/chats/useGetChat";
-import { useLocalSearchParams } from "expo-router";
 import useSetChat from "@/hooks/chats/useSetChat";
 import { getMessages } from "@/app/requests/messagesRequests";
-import MessageBubble from "@/app/components/MessageBubble";
 
-const { BASE_URL } = consts;
-
-const socket = io(BASE_URL, { transports: ["websocket"] });
+const socket = io(consts.BASE_URL, { transports: ["websocket"] });
 
 export default function Chat() {
   const { email, fname, lname, id: receiverId } = useLocalSearchParams();
+  const scrollRef = useRef<ScrollView>(null);
+
   const [height, setHeight] = useState(60);
-  const [sender, setSender] = useState({});
   const [message, setMessage] = useState("");
-  const [chat, setChat] = useState([{}]);
+  const [sender, setSender] = useState<any>({});
+  const [chat, setChat] = useState<any[]>([]);
 
-  const scrollRef = React.useRef();
+  // Send message
+  const sendMessage = () => {
+    if (!message.trim()) return;
 
-  // Initialize socket connection
+    const newMessage = {
+      message,
+      senderId: sender.id,
+      receiverId: receiverId.toString(),
+      timestamp: new Date().toISOString(),
+      seen: false,
+    };
+
+    const updatedChat = [...chat, newMessage];
+    setChat(updatedChat);
+    useSetChat(sender.id, receiverId.toString(), updatedChat);
+    socket.emit("sendMessage", newMessage);
+    setMessage("");
+  };
+
+  // Initial load
   useEffect(() => {
-    const fetchUserData = async () => {
+    const initChat = async () => {
       try {
         const user = await useGetUserCache();
         setSender(user);
-
         socket.emit("join", user.id);
 
-        let chatData = [];
         const cachedChat = await useGetChat(user.id, receiverId.toString());
-        if (cachedChat) chatData = cachedChat;
+        setChat(cachedChat || []);
+        // useSetChat(user.id, receiverId.toString(), cachedChat || []);
 
-        useSetChat(user.id, receiverId.toString(), chatData);
+        const resMessages = await getMessages(user.id, receiverId.toString());
+        const mergedChat = [...(cachedChat || [])];
 
-        setChat(chatData);
+        resMessages.receivedMessages.forEach((msg) => {
+          const existingMessage = mergedChat.find(
+            (m) => m.timestamp === msg.timestamp
+          );
+          if (existingMessage) return;
+          if (!msg.seen) mergedChat.push(msg);
+
+          // Emit seen acknowledgment to the sender
+          socket.emit("messageSeen", {
+            senderId: msg.senderId,
+            receiverId: msg.receiverId,
+            messageId: msg.timestamp,
+          });
+        });
+
+        resMessages.sentMessages.forEach((msg) => {
+          const index = mergedChat.findIndex(
+            (m) => m.timestamp === msg.timestamp
+          );
+          if (index !== -1) mergedChat[index].seen = true;
+        });
+
+        useSetChat(user.id, receiverId.toString(), mergedChat);
+        setChat(mergedChat);
       } catch (error) {
-        console.error("Error fetching user data or chat:", error);
+        console.error("Error initializing chat:", error);
       }
     };
 
-    fetchUserData();
-
-    // Listen for incoming messages
-    const handleMessage = async (data: any) => {
-      const sender = await useGetUserCache();
-
-      if (data.senderId === sender.id) return;
-
-      data.seen = true;
-
-      // Mark the message as seen and notify the sender
-      socket.emit("messageSeen", {
-        senderId: data.senderId,
-        receiverId: data.receiverId,
-        messageId: data.timestamp, // Use the timestamp as a unique identifier
-      });
-
-      setChat((prev) => [...prev, data]);
-      const newChat = [...chat];
-      newChat.push(data);
-      useSetChat(sender.id, receiverId.toString(), [...newChat]);
-    };
-    socket.on("receiveMessage", handleMessage);
-
-    // Cleanup function
-    return () => {
-      socket.off("receiveMessage", handleMessage);
-      // socket.disconnect();
-    };
+    initChat();
   }, [receiverId]);
 
+  // Incoming messages
   useEffect(() => {
-    (async () => {
+    const onReceiveMessage = async (resData: any) => {
       const user = await useGetUserCache();
+      if (resData.senderId === user.id) return;
 
-      const resMessages = await getMessages(user.id, receiverId.toString());
-
-      let chatData = await useGetChat(user.id, receiverId.toString());
-
-      resMessages.receivedMessages.forEach((msg) => {
-        if (!msg.seen) {
-          chatData.push(msg);
-        }
+      resData.seen = true;
+      socket.emit("messageSeen", {
+        senderId: resData.senderId,
+        receiverId: resData.receiverId,
+        messageId: resData.timestamp,
       });
 
-      resMessages.sentMessages.forEach((msg) => {
-        if (msg.seen) {
-          const found = chatData.find((m) => m.timestamp === msg.timestamp);
-          if (found) found.seen = true;
-        }
-      });
+      const updatedChat = [...chat, resData];
+      setChat(updatedChat);
+      useSetChat(user.id, receiverId.toString(), updatedChat);
+    };
 
-      useSetChat(user.id, receiverId.toString(), chatData);
-      setChat(chatData);
-    })();
-  }, []);
+    socket.on("receiveMessage", onReceiveMessage);
+    return () => socket.off("receiveMessage", onReceiveMessage);
+  }, [chat]);
 
+  // Seen updates
   useEffect(() => {
-    const handleUpdateMessageSeen = (messageId) => {
+    const onSeenUpdate = (messageId: string) => {
       setChat((prev) =>
         prev.map((msg) =>
           msg.timestamp === messageId ? { ...msg, seen: true } : msg
@@ -121,17 +129,9 @@ export default function Chat() {
       );
     };
 
-    socket.on("updateMessageSeen", handleUpdateMessageSeen);
-
-    return () => {
-      socket.off("updateMessageSeen", handleUpdateMessageSeen);
-    };
+    socket.on("updateMessageSeen", onSeenUpdate);
+    return () => socket.off("updateMessageSeen", onSeenUpdate);
   }, []);
-
-  // Dynamically adjust height of the text input
-  const handleContentSizeChange = (_, contentHeight: number) => {
-    setHeight(Math.min(contentHeight, 120)); // Cap the height at 120
-  };
 
   return (
     <View style={styles.container}>
@@ -141,81 +141,39 @@ export default function Chat() {
         style={{ flex: 1 }}
       >
         <ScrollView
-          style={styles.chatContainer}
           ref={scrollRef}
-          onContentSizeChange={() =>
-            scrollRef.current.scrollToEnd({
-              animated: true,
-              behavior: "smooth",
-            })
-          }
-          onLayout={() =>
-            scrollRef.current.scrollToEnd({
-              animated: true,
-              behavior: "smooth",
-            })
-          }
+          style={styles.chatContainer}
           contentContainerStyle={{ flexGrow: 1 }}
+          onContentSizeChange={() =>
+            scrollRef.current?.scrollToEnd({ animated: true })
+          }
+          onLayout={() => scrollRef.current?.scrollToEnd({ animated: true })}
           showsVerticalScrollIndicator={false}
         >
-          {chat?.map((item, index) => (
-            <MessageBubble key={index} message={item} senderId={sender.id} />
+          {chat.map((msg, index) => (
+            <MessageBubble key={index} message={msg} senderId={sender.id} />
           ))}
         </ScrollView>
+
         <View style={styles.inputContainer}>
           <TextInput
             placeholder="Type a message"
-            keyboardType="default"
-            autoCapitalize="none"
-            autoCorrect={false}
-            multiline
-            numberOfLines={4}
-            onContentSizeChange={({ nativeEvent }) =>
-              handleContentSizeChange(
-                nativeEvent.contentSize.width,
-                nativeEvent.contentSize.height
-              )
-            }
-            style={[styles.textInput, { height }]}
             value={message}
             onChangeText={setMessage}
-            accessibilityLabel="Message Input"
+            multiline
+            style={[styles.textInput, { height }]}
+            onContentSizeChange={(e) =>
+              setHeight(Math.min(e.nativeEvent.contentSize.height, 120))
+            }
           />
-          <TouchableOpacity
-            style={styles.sendBtn}
-            onPress={() => {
-              if (message.trim()) {
-                const newMessage = {
-                  message,
-                  senderId: sender.id,
-                  receiverId: receiverId.toString(),
-                  timestamp: new Date().toISOString(),
-                  seen: false,
-                };
-
-                let oldChat = chat ? [...chat] : [];
-
-                oldChat.push(newMessage);
-                setChat(oldChat);
-
-                useSetChat(sender.id, receiverId.toString(), oldChat);
-
-                socket.emit("sendMessage", newMessage);
-
-                setMessage("");
-              }
-            }}
-            accessibilityLabel="Send Message"
-          >
-            <FontAwesome name="send" size={24} color="white" />
+          <TouchableOpacity onPress={sendMessage} style={styles.sendBtn}>
+            <FontAwesome name="send" size={24} color="#fff" />
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
     </View>
   );
 }
-
-// Reusable MessageBubble Component
 
 const styles = StyleSheet.create({
   container: {
@@ -238,7 +196,6 @@ const styles = StyleSheet.create({
   },
   textInput: {
     minHeight: 60,
-    borderColor: "gray",
     backgroundColor: "#fff",
     paddingHorizontal: 10,
     borderRadius: 10,
@@ -251,12 +208,5 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     borderRadius: 10,
-  },
-  bubbleArrow: {
-    position: "absolute",
-    bottom: -10,
-
-    width: 0,
-    height: 0,
   },
 });

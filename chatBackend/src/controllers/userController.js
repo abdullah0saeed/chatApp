@@ -113,41 +113,6 @@ exports.register = async (req, res) => {
   }
 };
 ////////////////////////////////////////////////////////////////////////////?
-// exports.getAllUsers = async (req, res) => {
-//   const { userId } = req.params;
-
-//   try {
-//     let users = await User.find({ _id: { $ne: userId } });
-
-//     if (!users) return res.status(404).json({ message: "No users found" });
-
-//     const myNewMsgs = await Message.find(
-//       { receiverId: userId },
-//       { senderId: 1 }
-//     );
-
-//     users = users.map((user) => {
-//       const newMsg = myNewMsgs.filter(
-//         (msg) => msg.senderId == user._id && msg.seen == false
-//       );
-//       return {
-//         ...user._doc,
-//         newMsgs: String(newMsg.length),
-//       };
-//     });
-//     console.log(users);
-
-//     return res.status(200).json({
-//       message: "Users fetched successfully",
-//       users,
-//     });
-//   } catch (error) {
-//     console.error("Error fetching users:", error.message);
-//     return res.status(500).json({
-//       message: "An error occurred while fetching users",
-//     });
-//   }
-// };
 
 exports.getAllUsers = async (req, res) => {
   const { userId } = req.params;

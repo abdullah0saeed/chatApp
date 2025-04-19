@@ -1,36 +1,40 @@
 import { useCallback, useEffect, useState } from "react";
-import { FlashList } from "@shopify/flash-list";
 import {
   Image,
   Text,
   TouchableOpacity,
   useWindowDimensions,
   View,
+  StyleSheet,
 } from "react-native";
+import { FlashList } from "@shopify/flash-list";
+import { useFocusEffect, useNavigation } from "expo-router";
+import { io } from "socket.io-client";
 
-import ShowPicture from "@/app/components/ShowPicture";
-import imageHolder from "../../../assets/images/myLogo.png";
-import { useFocusEffect, useNavigation, useRouter } from "expo-router";
 import Header from "@/app/components/Header";
+import ShowPicture from "@/app/components/ShowPicture";
 import { getAllUsers } from "@/app/requests/userRequests";
 import useGetUserCache from "@/hooks/user/useGetUserCache";
+import imageHolder from "../../../assets/images/myLogo.png";
+import consts from "@/consts";
+
+const socket = io(consts.BASE_URL, { transports: ["websocket"] });
 
 export default function Home() {
   const navigation = useNavigation();
+  const { width } = useWindowDimensions();
 
   const [showPic, setShowPic] = useState(false);
-  const [selectedItem, setSelectedItem] = useState("");
+  const [selectedItem, setSelectedItem] = useState<any>(null);
   const [data, setData] = useState([]);
   const [refreshing, setRefreshing] = useState(false);
 
-  // get all users
   const getData = async () => {
     setRefreshing(true);
     try {
       const user = await useGetUserCache();
-      const userData = await getAllUsers(user.id);
-
-      setData(userData);
+      const usersData = await getAllUsers(user.id);
+      setData(usersData);
     } catch (error) {
       console.error("Error fetching users:", error);
     } finally {
@@ -44,17 +48,14 @@ export default function Home() {
     }, [])
   );
 
-  const handelNavigation = useCallback(
-    (item) => {
-      navigation.navigate({
-        name: "Chat",
-        params: {
-          email: item.email,
-          fname: item.fname,
-          lname: item.lname,
-          id: item._id,
-          pic: item.pic || imageHolder,
-        },
+  const handleNavigation = useCallback(
+    (item: any) => {
+      navigation.navigate("Chat", {
+        email: item.email,
+        fname: item.fname,
+        lname: item.lname,
+        id: item._id,
+        pic: item.pic || imageHolder,
       });
     },
     [navigation]
@@ -67,93 +68,63 @@ export default function Home() {
     }
   }, []);
 
-  const ListItem = ({ item }: any) => {
-    const { width } = useWindowDimensions();
-
-    return (
+  const ListItem = useCallback(
+    ({ item }: any) => (
       <TouchableOpacity
-        onPress={() => handelNavigation(item)}
-        style={{
-          flex: 1,
-        }}
+        onPress={() => handleNavigation(item)}
+        style={styles.itemWrapper}
       >
-        <View
-          style={{
-            backgroundColor: "#fff",
-            padding: 15,
-
-            flexDirection: "row",
-            alignItems: "center",
-            borderWidth: 0.5,
-            borderColor: "rgba(99, 109, 106, 0.46)",
-          }}
-        >
+        <View style={styles.itemContainer}>
           <TouchableOpacity
-            style={{
-              width: width * 0.15,
-              height: width * 0.15,
-              borderRadius: width * 0.075,
-              backgroundColor: "#ccc",
-              justifyContent: "center",
-              alignItems: "center",
-              marginRight: 15,
-            }}
+            style={[
+              styles.avatar,
+              {
+                width: width * 0.15,
+                height: width * 0.15,
+                borderRadius: width * 0.075,
+              },
+            ]}
             disabled={!item.pic}
             onPress={() => handleImagePress(item)}
           >
-            {!item.pic ? (
-              <Text
-                style={{
-                  fontSize: width * 0.07,
-                  color: "#fff",
-                  fontWeight: "bold",
-                }}
-              >
-                {item.fname[0].toUpperCase() + item.lname[0].toUpperCase()}
-              </Text>
-            ) : (
+            {item.pic ? (
               <Image
-                source={item.pic || imageHolder}
-                style={{
-                  width: "100%",
-                  height: "100%",
-                }}
+                source={item.pic}
+                style={styles.avatarImage}
                 resizeMode="contain"
-                alt={`${item.fname[0]} ${item.lname[0]}`}
               />
+            ) : (
+              <Text style={[styles.avatarText, { fontSize: width * 0.07 }]}>
+                {item.fname[0].toUpperCase()}
+                {item.lname[0].toUpperCase()}
+              </Text>
             )}
           </TouchableOpacity>
 
           <View>
-            <Text
-              style={{ fontSize: width * 0.05, fontWeight: "bold" }}
-              numberOfLines={1}
-              ellipsizeMode="tail"
-            >{`${item.fname} ${item.lname}`}</Text>
-            {/* <Text>{item.email}</Text> */}
+            <Text style={[styles.name, { fontSize: width * 0.05 }]}>
+              {item.fname} {item.lname}
+            </Text>
           </View>
+
           {item.newMsgs && item.newMsgs != 0 && (
             <View
-              style={{
-                backgroundColor: "rgba(240, 86, 114, 0.93)",
-                borderRadius: width * 0.0375,
-                width: width * 0.075,
-                height: width * 0.075,
-                justifyContent: "center",
-                alignItems: "center",
-                position: "absolute",
-                right: 20,
-                borderWidth: 2,
-                borderColor: "rgba(237, 163, 177, 0.93)",
-                elevation: 5,
-              }}
+              style={[
+                styles.badge,
+                {
+                  width: width * 0.075,
+                  height: width * 0.075,
+                  borderRadius: width * 0.0375,
+                },
+              ]}
             >
               <Text
-                style={{
-                  color: "#fff",
-                  fontSize: item.newMsgs < 99 ? width * 0.04 : width * 0.035,
-                  fontWeight: "bold",
-                }}
+                style={[
+                  styles.badgeText,
+                  {
+                    fontSize: item.newMsgs < 99 ? width * 0.04 : width * 0.035,
+                  },
+                ]}
               >
                 {item.newMsgs > 99 ? "99+" : item.newMsgs}
               </Text>
@@ -161,8 +132,9 @@ export default function Home() {
           )}
         </View>
       </TouchableOpacity>
-    );
-  };
+    ),
+    [width, handleNavigation, handleImagePress]
+  );
 
   return (
     <>
@@ -173,20 +145,64 @@ export default function Home() {
         estimatedItemSize={100}
         keyExtractor={(item) => item.email}
         showsVerticalScrollIndicator={false}
-        showsHorizontalScrollIndicator={false}
         refreshing={refreshing}
         onRefresh={getData}
       />
-      {showPic && (
+      {showPic && selectedItem && (
         <ShowPicture
-          pic={imageHolder}
+          pic={selectedItem.pic}
           onClose={() => {
             setShowPic(false);
-            setSelectedItem("");
+            setSelectedItem(null);
           }}
-          name={selectedItem.fname + " " + selectedItem.lname}
+          name={`${selectedItem.fname} ${selectedItem.lname}`}
         />
       )}
     </>
   );
 }
+
+const styles = StyleSheet.create({
+  itemWrapper: {
+    flex: 1,
+  },
+  itemContainer: {
+    backgroundColor: "#fff",
+    padding: 15,
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 0.5,
+    borderColor: "rgba(99, 109, 106, 0.46)",
+  },
+  avatar: {
+    backgroundColor: "#ccc",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 15,
+  },
+  avatarImage: {
+    width: "100%",
+    height: "100%",
+  },
+  avatarText: {
+    color: "#fff",
+    fontWeight: "bold",
+  },
+  name: {
+    fontWeight: "bold",
+  },
+  badge: {
+    backgroundColor: "rgba(240, 86, 114, 0.93)",
+    justifyContent: "center",
+    alignItems: "center",
+    position: "absolute",
+    right: 20,
+    borderWidth: 2,
+    borderColor: "rgba(237, 163, 177, 0.93)",
+    elevation: 5,
+  },
+  badgeText: {
+    color: "#fff",
+    fontWeight: "bold",
+  },
+});

@@ -45,9 +45,23 @@ module.exports = (io) => {
     );
 
     // Handle message seen acknowledgment
-    socket.on("messageSeen", ({ senderId, receiverId, messageId }) => {
-      io.to(senderId).emit("updateMessageSeen", messageId);
-      Message.deleteOne({ timestamp: messageId, senderId, receiverId });
+    socket.on("messageSeen", async ({ senderId, receiverId, messageId }) => {
+      console.log(messageId);
+
+      try {
+        const result = await Message.deleteOne({
+          timestamp: new Date(messageId),
+          senderId,
+          receiverId,
+        });
+        console.log("result", result);
+
+        if (result.deletedCount > 0) {
+          io.to(senderId).emit("updateMessageSeen", messageId);
+        }
+      } catch (err) {
+        console.error("Error deleting message:", err);
+      }
     });
 
     // Handle disconnection

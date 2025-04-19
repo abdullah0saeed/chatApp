@@ -1,6 +1,6 @@
 import * as FileSystem from "expo-file-system";
 
-export default async (senderId: string, receiverId: string, chat: [Object]) => {
+export default async (senderId: string, receiverId: string, chat: []) => {
   try {
     const path = `${FileSystem.documentDirectory}${senderId}_${receiverId}.json`;
     await FileSystem.writeAsStringAsync(path, JSON.stringify(chat));
